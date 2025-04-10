@@ -1,0 +1,534 @@
+// components/StudentProgress.jsx (completed)
+import React, { useState, useEffect } from 'react';
+import { Typography, List, ListItem, ListItemText, Chip } from '@mui/material';
+import http from '../../http';
+
+const StudentProgress = ({ userId }) => {
+  const [enrollments, setEnrollments] = useState([]);
+
+  useEffect(() => {
+    const fetchEnrollments = async () => {
+      const response = await http.get(`/students/${userId}/enrollments`);
+      setEnrollments(response.data);
+    };
+    fetchEnrollments();
+  }, [userId]);
+
+  return (
+    <div>
+      <Typography variant="h4" gutterBottom>Student Progress</Typography>
+      <List>
+        {enrollments.map(enrollment => (
+          <ListItem key={enrollment.id}>
+            <ListItemText 
+              primary={enrollment.module.title} 
+              secondary={`Course: ${enrollment.course.name}`}
+            />
+            <Chip label={enrollment.status} color={
+              enrollment.status === 'passed' ? 'success' : 
+              enrollment.status === 'failed' ? 'error' : 'default'
+            } />
+          </ListItem>
+        ))}
+      </List>
+    </div>
+  );
+};
+
+export default StudentProgress;
+
+// components/CompetencyMapEditor.jsx
+import React, { useState, useEffect } from 'react';
+import { Box, Button, Typography } from '@mui/material';
+import Xarrow from 'react-xarrows';
+import Draggable from 'react-draggable';
+import http from '../../http';
+
+const CompetencyMapEditor = ({ courseCode }) => {
+  const [modules, setModules] = useState([]);
+  const [relationships, setRelationships] = useState([]);
+
+  useEffect(() => {
+    const fetchCompetencyMap = async () => {
+      const response = await http.get(`/competency-maps/${courseCode}`);
+      setModules(response.data.modules);
+      setRelationships(response.data.relationships);
+    };
+    fetchCompetencyMap();
+  }, [courseCode]);
+
+  const handleDrag = (e, ui, id) => {
+    const updatedModules = modules.map(module => 
+      module.id === id ? { ...module, xPosition: module.xPosition + ui.deltaX, yPosition: module.yPosition + ui.deltaY } : module
+    );
+    setModules(updatedModules);
+  };
+
+  const handleSave = async () => {
+    await http.put(`/competency-maps/${courseCode}`, { modules, relationships });
+  };
+
+  const handleAddRelationship = (fromModuleId, toModuleId) => {
+    setRelationships([...relationships, { fromModuleId, toModuleId }]);
+  };
+
+  const handleRemoveRelationship = (fromModuleId, toModuleId) => {
+    setRelationships(relationships.filter(
+      rel => !(rel.fromModuleId === fromModuleId && rel.toModuleId === toModuleId)
+    ));
+  };
+
+  return (
+    <Box sx={{ width: '100%', height: '600px', position: 'relative', border: '1px solid #ccc' }}>
+      <Typography variant="h4" gutterBottom>Competency Map Editor</Typography>
+      {modules.map(module => (
+        <Draggable
+          key={module.id}
+          position={{ x: module.xPosition, y: module.yPosition }}
+          onStop={(e, ui) => handleDrag(e, ui, module.id)}
+        >
+          <div style={{ 
+            padding: '10px', 
+            border: '1px solid black', 
+            backgroundColor: 'white',
+            cursor: 'move'
+          }}>
+            {module.title}
+          </div>
+        </Draggable>
+      ))}
+      {relationships.map((relationship, index) => (
+        <Xarrow
+          key={index}
+          start={relationship.fromModuleId.toString()}
+          end={relationship.toModuleId.toString()}
+          color="red"
+          headSize={3}
+          strokeWidth={2}
+        />
+      ))}
+      <Button onClick={handleSave} variant="contained" color="primary" style={{ position: 'absolute', bottom: 10, right: 10 }}>
+        Save Competency Map
+      </Button>
+    </Box>
+  );
+};
+
+export default CompetencyMapEditor;
+
+// components/ModuleList.jsx
+import React, { useState, useEffect } from 'react';
+import { DataGrid } from '@mui/x-data-grid';
+import { Button, Typography } from '@mui/material';
+import http from '../../http';
+
+const ModuleList = () => {
+  const [modules, setModules] = useState([]);
+
+  useEffect(() => {
+    const fetchModules = async () => {
+      const response = await http.get('/modules/all');
+      setModules(response.data);
+    };
+    fetchModules();
+  }, []);
+
+  const columns = [
+    { field: 'moduleCode', headerName: 'Module Code', width: 150 },
+    { field: 'title', headerName: 'Title', width: 200 },
+    { field: 'description', headerName: 'Description', width: 300 },
+    { field: 'school', headerName: 'School', width: 150 },
+    { field: 'credit', headerName: 'Credit', width: 100 },
+    { field: 'competencyLevel', headerName: 'Competency Level', width: 150 },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 200,
+      renderCell: (params) => (
+        <>
+          <Button onClick={() => handleView(params.row.moduleCode)}>View</Button>
+          <Button onClick={() => handleEdit(params.row.moduleCode)}>Edit</Button>
+        </>
+      ),
+    },
+  ];
+
+  const handleView = (moduleCode) => {
+    // Implement view functionality
+  };
+
+  const handleEdit = (moduleCode) => {
+    // Implement edit functionality
+  };
+
+  return (
+    <div style={{ height: 400, width: '100%' }}>
+      <Typography variant="h4" gutterBottom>Modules</Typography>
+      <DataGrid rows={modules} columns={columns} pageSize={5} checkboxSelection getRowId={(row) => row.moduleCode} />
+    </div>
+  );
+};
+
+export default ModuleList;
+
+// components/CertificationManager.jsx
+import React, { useState, useEffect } from 'react';
+import { Typography, List, ListItem, ListItemText, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import http from '../../http';
+
+const CertificationManager = ({ moduleCode }) => {
+  const [certifications, setCertifications] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [currentCertification, setCurrentCertification] = useState({ name: '', description: '' });
+
+  useEffect(() => {
+    const fetchCertifications = async () => {
+      const response = await http.get(`/modules/${moduleCode}/certifications`);
+      setCertifications(response.data);
+    };
+    fetchCertifications();
+  }, [moduleCode]);
+
+  const handleOpen = (certification = { name: '', description: '' }) => {
+    setCurrentCertification(certification);
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  const handleSave = async () => {
+    if (currentCertification.id) {
+      await http.put(`/certifications/${currentCertification.id}`, currentCertification);
+    } else {
+      await http.post(`/modules/${moduleCode}/certifications`, currentCertification);
+    }
+    handleClose();
+    // Refresh certifications
+    const response = await http.get(`/modules/${moduleCode}/certifications`);
+    setCertifications(response.data);
+  };
+
+  const handleDelete = async (id) => {
+    await http.delete(`/certifications/${id}`);
+    // Refresh certifications
+    const response = await http.get(`/modules/${moduleCode}/certifications`);
+    setCertifications(response.data);
+  };
+
+  return (
+    <div>
+      <Typography variant="h4" gutterBottom>Certifications for {moduleCode}</Typography>
+      <Button onClick={() => handleOpen()}>Add New Certification</Button>
+      <List>
+        {certifications.map(certification => (
+          <ListItem key={certification.id}>
+            <ListItemText 
+              primary={certification.name} 
+              secondary={certification.description}
+            />
+            <Button onClick={() => handleOpen(certification)}>Edit</Button>
+            <Button onClick={() => handleDelete(certification.id)}>Delete</Button>
+          </ListItem>
+        ))}
+      </List>
+      <Dialog open={open} onClose={handleClose}>
+        <DialogTitle>{currentCertification.id ? 'Edit' : 'Add'} Certification</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Name"
+            fullWidth
+            value={currentCertification.name}
+            onChange={(e) => setCurrentCertification({...currentCertification, name: e.target.value})}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            fullWidth
+            multiline
+            rows={4}
+            value={currentCertification.description}
+            onChange={(e) => setCurrentCertification({...currentCertification, description: e.target.value})}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={handleSave}>Save</Button>
+        </DialogActions>
+      </Dialog>
+    </div>
+  );
+};
+
+export default CertificationManager;
+
+// components/StudentProgress.jsx (continued)
+import React, { useState, useEffect } from 'react';
+import { Typography, List, ListItem, ListItemText, Chip } from '@mui/material';
+import http from '../../http';
+
+const StudentProgress = ({ userId }) => {
+  const [enrollments, setEnrollments] = useState([]);
+
+  useEffect(() => {
+    const fetchEnrollments = async () => {
+      const response = await http.get(`/students/${userId}/enrollments`);
+      setEnrollments(response.data);
+    };
+    fetchEnrollments();
+  }, [userId]);
+
+  return (
+    <div>
+      <Typography variant="h4" gutterBottom>Student Progress</Typography>
+      <List>
+        {enrollments.map(enrollment => (
+          <ListItem key={enrollment.id}>
+            <ListItemText 
+              primary={enrollment.module.title} 
+              secondary={`Course: ${enrollment.course.name}`}
+            />
+            <Chip label={enrollment.status} color={
+              enrollment.status === 'passed' ? 'success' : 
+              enrollment.status === 'failed' ? 'error' : 'default'
+            } />
+          </ListItem>
+        ))}
+      </List>
+    </div>
+  );
+};
+
+export default StudentProgress;
+
+// components/ModuleList.jsx
+import React, { useState, useEffect } from 'react';
+import { DataGrid } from '@mui/x-data-grid';
+import { Button, Typography } from '@mui/material';
+import http from '../../http';
+
+const ModuleList = () => {
+  const [modules, setModules] = useState([]);
+
+  useEffect(() => {
+    const fetchModules = async () => {
+      const response = await http.get('/modules/all');
+      setModules(response.data);
+    };
+    fetchModules();
+  }, []);
+
+  const columns = [
+    { field: 'moduleCode', headerName: 'Module Code', width: 150 },
+    { field: 'title', headerName: 'Title', width: 200 },
+    { field: 'description', headerName: 'Description', width: 300 },
+    { field: 'school', headerName: 'School', width: 150 },
+    { field: 'credit', headerName: 'Credit', width: 100 },
+    { field: 'competencyLevel', headerName: 'Competency Level', width: 150 },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 200,
+      renderCell: (params) => (
+        <>
+          <Button onClick={() => handleView(params.row.moduleCode)}>View</Button>
+          <Button onClick={() => handleEdit(params.row.moduleCode)}>Edit</Button>
+        </>
+      ),
+    },
+  ];
+
+  const handleView = (moduleCode) => {
+    // Implement view functionality
+  };
+
+  const handleEdit = (moduleCode) => {
+    // Implement edit functionality
+  };
+
+  return (
+    <div style={{ height: 400, width: '100%' }}>
+      <Typography variant="h4" gutterBottom>Modules</Typography>
+      <DataGrid rows={modules} columns={columns} pageSize={5} checkboxSelection getRowId={(row) => row.moduleCode} />
+    </div>
+  );
+};
+
+export default ModuleList;
+
+// components/CertificationManager.jsx
+import React, { useState, useEffect } from 'react';
+import { Typography, List, ListItem, ListItemText, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import http from '../../http';
+
+const CertificationManager = ({ moduleCode }) => {
+  const [certifications, setCertifications] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [currentCertification, setCurrentCertification] = useState({ name: '', description: '' });
+
+  useEffect(() => {
+    const fetchCertifications = async () => {
+      const response = await http.get(`/modules/${moduleCode}/certifications`);
+      setCertifications(response.data);
+    };
+    fetchCertifications();
+  }, [moduleCode]);
+
+  const handleOpen = (certification = { name: '', description: '' }) => {
+    setCurrentCertification(certification);
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  const handleSave = async () => {
+    if (currentCertification.id) {
+      await http.put(`/certifications/${currentCertification.id}`, currentCertification);
+    } else {
+      await http.post(`/modules/${moduleCode}/certifications`, currentCertification);
+    }
+    handleClose();
+    // Refresh certifications
+    const response = await http.get(`/modules/${moduleCode}/certifications`);
+    setCertifications(response.data);
+  };
+
+  const handleDelete = async (id) => {
+    await http.delete(`/certifications/${id}`);
+    // Refresh certifications
+    const response = await http.get(`/modules/${moduleCode}/certifications`);
+    setCertifications(response.data);
+  };
+
+  return (
+    <div>
+      <Typography variant="h4" gutterBottom>Certifications for {moduleCode}</Typography>
+      <Button onClick={() => handleOpen()}>Add New Certification</Button>
+      <List>
+        {certifications.map(certification => (
+          <ListItem key={certification.id}>
+            <ListItemText 
+              primary={certification.name} 
+              secondary={certification.description}
+            />
+            <Button onClick={() => handleOpen(certification)}>Edit</Button>
+            <Button onClick={() => handleDelete(certification.id)}>Delete</Button>
+          </ListItem>
+        ))}
+      </List>
+      <Dialog open={open} onClose={handleClose}>
+        <DialogTitle>{currentCertification.id ? 'Edit' : 'Add'} Certification</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Name"
+            fullWidth
+            value={currentCertification.name}
+            onChange={(e) => setCurrentCertification({...currentCertification, name: e.target.value})}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            fullWidth
+            multiline
+            rows={4}
+            value={currentCertification.description}
+            onChange={(e) => setCurrentCertification({...currentCertification, description: e.target.value})}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={handleSave}>Save</Button>
+        </DialogActions>
+      </Dialog>
+    </div>
+  );
+};
+
+export default CertificationManager;
+
+// components/StudentEnrollment.jsx
+import React, { useState, useEffect } from 'react';
+import { Typography, List, ListItem, ListItemText, Button, Dialog, DialogTitle, DialogContent, DialogActions, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import http from '../../http';
+
+const StudentEnrollment = ({ userId }) => {
+  const [enrollments, setEnrollments] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState('');
+
+  useEffect(() => {
+    const fetchEnrollments = async () => {
+      const response = await http.get(`/students/${userId}/enrollments`);
+      setEnrollments(response.data);
+    };
+    const fetchCourses = async () => {
+      const response = await http.get('/courses/all');
+      setCourses(response.data);
+    };
+    fetchEnrollments();
+    fetchCourses();
+  }, [userId]);
+
+  const handleOpen = () => {
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  const handleEnroll = async () => {
+    await http.post(`/students/${userId}/enroll`, { courseCode: selectedCourse });
+    handleClose();
+    // Refresh enrollments
+    const response = await http.get(`/students/${userId}/enrollments`);
+    setEnrollments(response.data);
+  };
+
+  return (
+    <div>
+      <Typography variant="h4" gutterBottom>Course Enrollments</Typography>
+      <Button onClick={handleOpen}>Enroll in New Course</Button>
+      <List>
+        {enrollments.map(enrollment => (
+          <ListItem key={enrollment.id}>
+            <ListItemText 
+              primary={enrollment.course.name} 
+              secondary={`Year of Study: ${enrollment.yearOfStudy}`}
+            />
+          </ListItem>
+        ))}
+      </List>
+      <Dialog open={open} onClose={handleClose}>
+        <DialogTitle>Enroll in Course</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth>
+            <InputLabel>Course</InputLabel>
+            <Select
+              value={selectedCourse}
+              onChange={(e) => setSelectedCourse(e.target.value)}
+            >
+              {courses.map(course => (
+                <MenuItem key={course.courseCode} value={course.courseCode}>{course.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={handleEnroll}>Enroll</Button>
+        </DialogActions>
+      </Dialog>
+    </div>
+  );
+};
+
+export default StudentEnrollment;
