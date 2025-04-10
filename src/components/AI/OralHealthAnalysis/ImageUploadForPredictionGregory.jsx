@@ -46,13 +46,14 @@ const ImageUploadForPrediction = ({
   labelMapping,
   onPredictionResults,
   predictionResults,
-  updateOralHistory,
+  updateOralHistory
 }) => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [uploading, setUploading] = useState(false);
   const [predictionResult, setPredictionResult] = useState(null);
   const [error, setError] = useState(null);
+  const [expandedAccordion, setExpandedAccordion] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [finalImage, setFinalImage] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -108,6 +109,13 @@ const ImageUploadForPrediction = ({
       setPredictionResult(response.data);
       setNewHistory(response.data);
       console.log("Prediction results:", response.data);
+      
+      // Trigger scroll after a short delay to ensure components are updated
+      setTimeout(() => {
+        if (typeof onAnalysisComplete === 'function') {
+          onAnalysisComplete();
+        }
+      }, 500); // Half second delay
     } catch (err) {
       setError("Prediction failed. Please try again.");
       console.error("Prediction error:", err);
@@ -348,126 +356,103 @@ const ImageUploadForPrediction = ({
 
   return (
     <>
-      <Card elevation={3} sx={{ width: "100%" }}>
-        <CardHeader
-          title="Oral Condition Detector"
-          subheader="Upload or capture an image of your teeth/gum/mouth for AI analysis"
-          sx={{ textAlign: "center" }}
-        />
-        <CardContent>
-          <Stack spacing={3}>
-            {/* Upload Area */}
-            <Paper
-              {...getRootProps()}
-              elevation={0}
-              sx={{
-                border: "2px dashed",
-                borderColor: isDragActive ? "primary.main" : "grey.300",
-                borderRadius: 2,
-                p: 3,
-                bgcolor: isDragActive ? "primary.50" : "background.paper",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                "&:hover": {
-                  borderColor: "primary.main",
-                  bgcolor: "primary.50",
-                },
-              }}
-            >
-              <input {...getInputProps()} />
-              <Box sx={{ textAlign: "center" }}>
-                <CloudUploadIcon
-                  sx={{ fontSize: 48, color: "primary.main", mb: 2 }}
-                />
-                {uploading ? (
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 2,
-                    }}
-                  >
-                    <CircularProgress size={24} />
-                    <Typography>Analyzing your image...</Typography>
-                    <LinearProgress
-                      sx={{ width: "100%", maxWidth: 300, mx: "auto" }}
-                    />
-                  </Box>
-                ) : (
-                  <>
-                    <Typography variant="h6" gutterBottom>
-                      Drag & drop your image here
-                    </Typography>
-                    <Typography color="textSecondary" gutterBottom>
-                      or
-                    </Typography>
-                    <Stack direction="row" spacing={2} justifyContent="center">
-                      <Button
-                        variant="contained"
-                        startIcon={<CloudUploadIcon />}
-                        component="span"
-                      >
-                        Choose File
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        startIcon={<PhotoCameraIcon />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startCamera();
-                        }}
-                      >
-                        Take Photo
-                      </Button>
-                    </Stack>
-                    <Typography
-                      variant="caption"
-                      color="textSecondary"
-                      sx={{ mt: 2, display: "block" }}
+      {/* Header Section */}
+      <Stack spacing={4} sx={{ width: '100%' }}>
+        {/* Title Section */}
+        <Box sx={{ textAlign: "center" }}>
+          <Typography variant="h5" gutterBottom>
+            Oral Condition Detector
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Upload or capture an image of your teeth/gum/mouth for AI analysis
+          </Typography>
+        </Box>
+
+        {/* Upload Section */}
+        <Box>
+          <Paper
+            {...getRootProps()}
+            elevation={0}
+            sx={{
+              border: "2px dashed",
+              borderColor: isDragActive ? "primary.main" : "grey.300",
+              borderRadius: 2,
+              p: 3,
+              bgcolor: isDragActive ? "primary.50" : "background.paper",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                borderColor: "primary.main",
+                bgcolor: "primary.50",
+              },
+              mb: error ? 2 : 0,
+            }}
+          >
+            <input {...getInputProps()} />
+            <Box sx={{ textAlign: "center" }}>
+              {uploading ? (
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                  <CircularProgress size={24} />
+                  <Typography>Analyzing your image...</Typography>
+                  <LinearProgress sx={{ width: "100%", maxWidth: 300, mx: "auto" }} />
+                </Box>
+              ) : (
+                <>
+                  <CloudUploadIcon sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
+                  <Typography variant="h6" gutterBottom>
+                    Drag & drop your image here
+                  </Typography>
+                  <Typography color="text.secondary" gutterBottom>
+                    or
+                  </Typography>
+                  <Stack direction="row" spacing={2} justifyContent="center">
+                    <Button variant="contained" startIcon={<CloudUploadIcon />} component="span">
+                      Choose File
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<PhotoCameraIcon />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startCamera();
+                      }}
                     >
-                      Accepts JPEG, PNG, GIF (max 2MB)
-                    </Typography>
-                  </>
-                )}
-              </Box>
-            </Paper>
+                      Take Photo
+                    </Button>
+                  </Stack>
+                  <Typography variant="caption" sx={{ mt: 2, display: "block" }} color="text.secondary">
+                    Accepts JPEG, PNG, GIF (max 2MB)
+                  </Typography>
+                </>
+              )}
+            </Box>
+          </Paper>
 
-            {/* Error Message */}
-            {error && (
-              <Alert
-                severity="error"
-                icon={<ErrorIcon />}
-                sx={{ width: "100%" }}
-              >
-                {error}
-              </Alert>
-            )}
+          {error && (
+            <Alert severity="error" icon={<ErrorIcon />}>
+              {error}
+            </Alert>
+          )}
+        </Box>
 
-            {predictionResult && originalImagePathWithHostURL && (
-              <SaveResultsButton
-                imagePathWithHostURL={originalImagePathWithHostURL}
-                drawBoundingBox={drawBoundingBoxes}
-                predictionResult={predictionResult}
-                onSave={updateOralHistory}
-              />
-            )}
-
+        {/* Results Section */}
+        {(imagePreview || predictionResult) && (
+          <Box sx={{
+            bgcolor: "grey.50",
+            borderRadius: 2,
+            p: 3,
+            border: '1px solid',
+            borderColor: 'grey.200'
+          }}>
             {/* Image Previews */}
             {imagePreview && (
-              <Grid container spacing={3}>
+              <Grid container spacing={3} mb={predictionResult ? 4 : 0}>
                 <Grid item xs={12} md={6}>
-                  <ImagePreviewBox
-                    image={imagePreview}
-                    title="Original Image"
-                  />
+                  <ImagePreviewBox image={imagePreview} title="Original Image" />
                 </Grid>
                 {finalImage && (
                   <Grid item xs={12} md={6}>
-                    <ImagePreviewBox
-                      image={finalImage}
-                      title="Analysis Results"
-                    />
+                    <ImagePreviewBox image={finalImage} title="Analysis Results" />
                   </Grid>
                 )}
               </Grid>
@@ -475,98 +460,231 @@ const ImageUploadForPrediction = ({
 
             {/* Analysis Results */}
             {predictionResult && (
-              <Box sx={{ mt: 2 }}>
-                <Stack spacing={1}>
-                  {Object.entries(
-                    groupPredictions(predictionResult.predictions)
-                  ).map(([className, predictions]) => (
-                    <Accordion
-                      key={className}
-                      defaultExpanded
-                      sx={{
-                        "&.MuiAccordion-root": {
-                          borderRadius: 1,
-                          "&:before": {
-                            display: "none",
-                          },
-                        },
-                      }}
-                    >
-                      <AccordionSummary
-                        expandIcon={<ExpandMoreIcon />}
+              <>
+                <Typography variant="h6" gutterBottom sx={{ mt: 2, mb: 3 }}>
+                  Detected Conditions
+                </Typography>
+                <Stack spacing={2}>
+                  {Object.entries(groupPredictions(predictionResult.predictions))
+                    .map(([className, predictions]) => (
+                      <Accordion
+                        key={className}
+                        expanded={expandedAccordion === className}
+                        onChange={() => setExpandedAccordion(expandedAccordion === className ? false : className)}
                         sx={{
-                          bgcolor: "primary.50",
-                          "&:hover": { bgcolor: "primary.100" },
-                          borderRadius: "4px 4px 0 0",
+                          boxShadow: 'none',
+                          '&.MuiAccordion-root': {
+                            borderRadius: 1,
+                            border: '1px solid',
+                            borderColor: 'grey.200',
+                            '&:before': { display: 'none' },
+                          }
                         }}
                       >
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          alignItems="center"
-                          width="100%"
+                        <AccordionSummary
+                          expandIcon={<ExpandMoreIcon />}
+                          sx={{
+                            bgcolor: 'primary.50',
+                            '&:hover': { bgcolor: 'primary.100' }
+                          }}
                         >
-                          <Typography
-                            variant="subtitle1"
-                            sx={{ fontWeight: "medium" }}
-                          >
-                            {className}
-                          </Typography>
-                          <Chip
-                            size="small"
-                            label={predictions.length}
-                            color="primary"
-                            sx={{ ml: "auto", mr: 2 }}
-                          />
-                        </Stack>
-                      </AccordionSummary>
-                      <AccordionDetails sx={{ bgcolor: "background.paper" }}>
-                        <Stack spacing={1.5}>
-                          {predictions.map((prediction, idx) => (
-                            <Stack
-                              key={idx}
-                              direction="row"
-                              spacing={2}
-                              alignItems="center"
-                              sx={{
-                                pl: 1,
-                                py: 0.5,
-                                "&:hover": { bgcolor: "action.hover" },
-                                borderRadius: 1,
-                              }}
-                            >
-                              <CircleIcon
-                                sx={{ fontSize: 8, color: "primary.main" }}
-                              />
-                              <Typography
-                                variant="body2"
-                                sx={{ fontWeight: "medium" }}
+                          <Stack direction="row" spacing={1} alignItems="center" width="100%">
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                              {className}
+                            </Typography>
+                            <Chip
+                              size="small"
+                              label={predictions.length}
+                              color="primary"
+                              sx={{ ml: 'auto', mr: 2 }}
+                            />
+                          </Stack>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Stack spacing={1.5}>
+                            {predictions.map((prediction, idx) => (
+                              <Stack
+                                key={idx}
+                                direction="row"
+                                spacing={2}
+                                alignItems="center"
+                                sx={{
+                                  p: 1,
+                                  borderRadius: 1,
+                                  '&:hover': { bgcolor: 'action.hover' },
+                                }}
                               >
-                                Box {idx + 1} -{" "}
-                                {(prediction.confidence * 100).toFixed(1)}%{" "}
-                                {className}
-                              </Typography>
-                              {prediction.location && (
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  Location: {prediction.location}
+                                <CircleIcon sx={{ fontSize: 8, color: 'primary.main' }} />
+                                <Typography variant="body2">
+                                  Box {idx + 1} - {(prediction.confidence * 100).toFixed(1)}% {className}
                                 </Typography>
-                              )}
-                            </Stack>
-                          ))}
-                        </Stack>
-                      </AccordionDetails>
-                    </Accordion>
-                  ))}
+                              </Stack>
+                            ))}
+                          </Stack>
+                        </AccordionDetails>
+                      </Accordion>
+                    ))}
+
+                  {/* Save Results Section */}
+                  {originalImagePathWithHostURL && predictionResult && (
+                    <Box
+                      sx={{
+                        mt: 4,
+                        p: 3,
+                        bgcolor: 'primary.50',
+                        borderRadius: 2,
+                        textAlign: 'center'
+                      }}
+                    >
+                      <Typography variant="h6" gutterBottom>
+                        Save Analysis Results
+                      </Typography>
+                      <Typography color="text.secondary" sx={{ mb: 2 }}>
+                        Save these results to your oral health history
+                      </Typography>
+                      <SaveResultsButton
+                        imagePathWithHostURL={originalImagePathWithHostURL}
+                        drawBoundingBox={drawBoundingBoxes}
+                        predictionResult={predictionResult}
+                        onSave={updateOralHistory}
+                      />
+                    </Box>
+                  )}
                 </Stack>
+              </>
+            )}
+          </Box>
+        )}
+      </Stack>
+
+      {/* Camera Dialog */}
+      <Dialog
+        open={isCameraOpen}
+        onClose={stopCamera}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            overflow: 'hidden',
+            bgcolor: 'grey.900',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: 'grey.800',
+            color: 'common.white',
+            p: 2,
+            borderBottom: 1,
+            borderColor: 'grey.700'
+          }}
+        >
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">
+              {capturedImage ? "Preview Photo" : "Take Photo"}
+            </Typography>
+            <IconButton
+              onClick={stopCamera}
+              size="small"
+              sx={{
+                color: 'grey.400',
+                '&:hover': {
+                  color: 'error.light',
+                  bgcolor: 'error.dark',
+                },
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ position: 'relative', bgcolor: 'grey.900' }}>
+            {cameraError ? (
+              <Box sx={{ p: 3 }}>
+                <Alert
+                  severity="error"
+                  variant="filled"
+                  sx={{ width: '100%' }}
+                >
+                  {cameraError}
+                </Alert>
+              </Box>
+            ) : capturedImage ? (
+              <Box sx={{ height: IMAGE_PREVIEW_HEIGHT, position: 'relative' }}>
+                <img
+                  src={capturedImage}
+                  alt="Captured"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                  }}
+                />
+              </Box>
+            ) : (
+              <Box sx={{ height: IMAGE_PREVIEW_HEIGHT, position: 'relative' }}>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                  }}
+                />
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
               </Box>
             )}
-          </Stack>
-        </CardContent>
-      </Card>
+          </Box>
+        </DialogContent>
 
+        <DialogActions
+          sx={{
+            p: 3,
+            bgcolor: 'grey.800',
+            borderTop: 1,
+            borderColor: 'grey.700',
+            justifyContent: 'center'
+          }}
+        >
+          {capturedImage ? (
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="contained"
+                onClick={retakePhoto}
+                startIcon={<ReplayIcon />}
+                color="error"
+                sx={{ px: 3 }}
+              >
+                Retake
+              </Button>
+              <Button
+                variant="contained"
+                onClick={acceptPhoto}
+                startIcon={<CheckIcon />}
+                color="success"
+                sx={{ px: 3 }}
+              >
+                Use Photo
+              </Button>
+            </Stack>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={capturePhoto}
+              startIcon={<PhotoCameraIcon />}
+              sx={{ px: 4, py: 1.5 }}
+              color="primary"
+            >
+              Take Photo
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
       {/* Camera Dialog */}
       <Dialog
         open={isCameraOpen}

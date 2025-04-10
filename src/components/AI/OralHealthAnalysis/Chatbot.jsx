@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Box, Paper, Typography, TextField, Button, Switch, FormControlLabel, CircularProgress } from "@mui/material";
 import http from "../../../http";
 import { marked } from "marked";
+import DOMPurify from "dompurify";
 
 const Chatbot = ({ singleOralResult, labelMapping, jwtUserId }) => {
   const [messages, setMessages] = useState([
@@ -188,11 +189,19 @@ const Chatbot = ({ singleOralResult, labelMapping, jwtUserId }) => {
   };
 
   const renderMarkdown = (markdownText) => {
-    return { __html: marked(markdownText) };
+    marked.setOptions({
+      breaks: true,
+      gfm: true,
+      headerIds: true,
+      smartLists: true,
+    });
+    const rawHTML = marked(markdownText);
+    const cleanHTML = DOMPurify.sanitize(rawHTML);
+    return { __html: cleanHTML };
   };
 
   return (
-    <Paper elevation={3} sx={{ p: 2, mt: 2, borderRadius: 2 }}>
+    <Box sx={{ width: '100%', mb: 4, p: 3 }}>
       <Typography variant="h5" gutterBottom>
         Oral Health Assistant
       </Typography>
@@ -224,16 +233,84 @@ const Chatbot = ({ singleOralResult, labelMapping, jwtUserId }) => {
             key={index}
             sx={{
               alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
-              backgroundColor: msg.sender === "user" ? "#1976d2" : "#e0e0e0",
+              backgroundColor: msg.sender === "user" ? "#1976d2" : "#ffffff",
               color: msg.sender === "user" ? "#fff" : "#000",
-              p: 1.5,
+              p: msg.sender === "bot" ? 2 : 1.5,
               m: 0.5,
               borderRadius: 2,
               maxWidth: "70%",
+              boxShadow: "0px 2px 4px rgba(0,0,0,0.1)",
+              "& .markdown-content": {
+                "& h1": {
+                  textAlign: "center",
+                  color: "#1976d2",
+                  fontSize: "1.5rem",
+                  fontWeight: "bold",
+                  mb: 3,
+                  mt: 1,
+                },
+                "& h2": {
+                  color: "#2196f3",
+                  fontSize: "1.25rem",
+                  fontWeight: "bold",
+                  mt: 3,
+                  mb: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                },
+                "& p": {
+                  mb: 2,
+                  lineHeight: 1.6,
+                  textAlign: "justify",
+                },
+                "& ul, & ol": {
+                  ml: 3,
+                  mb: 2,
+                  "& li": {
+                    mb: 1,
+                    position: "relative",
+                    "&::before": {
+                      content: '"•"',
+                      color: "#2196f3",
+                      position: "absolute",
+                      left: -20,
+                      fontWeight: "bold",
+                    },
+                  },
+                },
+                "& blockquote": {
+                  borderLeft: "4px solid #ffa726",
+                  bgcolor: "#fff3e0",
+                  p: 2,
+                  my: 2,
+                  borderRadius: 1,
+                  "& p": {
+                    m: 0,
+                    color: "#e65100",
+                  },
+                },
+                "& a": {
+                  color: "#0077cc",
+                  textDecoration: "none",
+                  fontWeight: "medium",
+                  "&:hover": {
+                    textDecoration: "underline",
+                    color: "#0056b3",
+                  },
+                },
+                "& strong": {
+                  color: "#0d47a1",
+                  fontWeight: "bold",
+                },
+              },
             }}
           >
             {msg.sender === "bot" ? (
-              <span dangerouslySetInnerHTML={renderMarkdown(msg.text)} />
+              <div
+                className="markdown-content"
+                dangerouslySetInnerHTML={renderMarkdown(msg.text)}
+              />
             ) : (
               msg.text
             )}
@@ -242,7 +319,6 @@ const Chatbot = ({ singleOralResult, labelMapping, jwtUserId }) => {
         <div ref={chatEndRef} />
       </Box>
 
-      {isLoading && <CircularProgress sx={{ display: "block", margin: "auto", marginTop: 2 }} />}
       {error && <Typography color="error">{error}</Typography>}
 
       <Box sx={{ display: "flex", mt: 1 }}>
@@ -255,11 +331,17 @@ const Chatbot = ({ singleOralResult, labelMapping, jwtUserId }) => {
           onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
           sx={{ mr: 1 }}
         />
-        <Button variant="contained" color="primary" onClick={handleSendMessage}>
-          Send
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleSendMessage}
+          disabled={isLoading}
+          startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : null}
+        >
+          {isLoading ? 'Sending...' : 'Send'}
         </Button>
       </Box>
-    </Paper>
+    </Box>
   );
 };
 

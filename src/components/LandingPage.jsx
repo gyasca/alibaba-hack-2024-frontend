@@ -102,7 +102,7 @@ const LandingPage = () => {
             color: "#888",
             mb: 4
           }}>
-            By Ryan, Azrel, Charmain, Gregory(Team Lead)
+            By group "Cintech 3.0" (Samuel, Alycia, Gregory)
           </Typography>
           <Button
             component={Link}

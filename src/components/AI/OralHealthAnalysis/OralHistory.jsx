@@ -5,6 +5,7 @@ import {
   CircularProgress,
   Typography,
   Paper,
+  Card,
   IconButton,
   Button,
   Dialog,
@@ -275,7 +276,7 @@ const OralHistory = ({ labelMapping, refreshTrigger, jwtUserId }) => {
   }
 
   return (
-    <Paper sx={{ padding: 2, marginTop: 2, position: "relative" }}>
+    <Box sx={{ width: '100%', mb: 4, p: 3 }}>
       {selectedRows.length > 0 && (
         <Button
           variant="contained"
@@ -444,7 +445,7 @@ const OralHistory = ({ labelMapping, refreshTrigger, jwtUserId }) => {
           </LineChart>
         </Grid>
       </Grid>
-    </Paper>
+    </Box>
   );
 };
 

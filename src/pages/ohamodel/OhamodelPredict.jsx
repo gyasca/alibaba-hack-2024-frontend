@@ -55,48 +55,70 @@ function OhamodelPredict() {
   }, [oralHistory]);
 
   return (
-    <Box
+    <Container
+      maxWidth="xl"
       sx={{
         mt: 2,
         mb: 4,
-        px: 2, // Remove padding on the left and right to utilize full width
-        mx: 0,
-        maxWidth: "100%", // Ensure it takes the full available width
+        px: 2,
+        display: "flex",
+        justifyContent: "center"
       }}
     >
-      {/* Header Card - Full Width */}
       <Card
         className="shadow-sm hover:shadow-md transition-shadow"
-        sx={{ mb: 2 }}
+        sx={{
+          width: '100%',
+          border: "1px solid #ccc",
+          borderRadius: 2,
+          transition: "box-shadow 0.3s ease-in-out",
+          "&:hover": {
+            boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.15)",
+          },
+        }}
       >
-        <CardContent className="p-6">
-          <Box className="flex flex-col">
-            <Typography variant="h3" className="font-semibold">
-              Oral Analysis
-            </Typography>
-            <Typography variant="body1" color="textSecondary">
-              AI-Powered Oral Condition Diagnosis
-            </Typography>
+        <CardContent>
+          <Typography variant="h3" sx={{ textAlign: 'center', mb: 1 }}>
+            Oral Analysis
+          </Typography>
+          <Typography variant="body1" color="textSecondary" sx={{ textAlign: 'center', mb: 4 }}>
+            AI-Powered Oral Condition Diagnosis
+          </Typography>
+          
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <Box id="analysis-section" sx={{ scrollMarginTop: '2rem' }}>
+              <Card sx={{ p: 3, borderRadius: 2, border: "1px solid #eee" }}>
+                <ImageUploadForPredictionGregory
+                  modelRoute={"/ohamodel/predict"}
+                  labelMapping={labelMapping}
+                  updateOralHistory={updateOralHistory}
+                />
+              </Card>
+            </Box>
+            
+            <Box id="oral-history" sx={{ scrollMarginTop: '2rem' }}>
+              <Card sx={{ p: 3, borderRadius: 2, border: "1px solid #eee" }}>
+                <OralHistory
+                  refreshTrigger={oralHistory}
+                  labelMapping={labelMapping}
+                  jwtUserId={jwtUser()}
+                />
+              </Card>
+            </Box>
+            
+            <Box id="chatbot" sx={{ scrollMarginTop: '2rem' }}>
+              <Card sx={{ p: 3, borderRadius: 2, border: "1px solid #eee" }}>
+                <Chatbot
+                  singleOralResult={oralHistory}
+                  labelMapping={labelMapping}
+                  jwtUserId={jwtUser()}
+                />
+              </Card>
+            </Box>
           </Box>
         </CardContent>
       </Card>
-
-      <ImageUploadForPredictionGregory
-        modelRoute={"/ohamodel/predict"}
-        labelMapping={labelMapping}
-        updateOralHistory={updateOralHistory}
-      />
-      <OralHistory
-        refreshTrigger={oralHistory}
-        labelMapping={labelMapping}
-        jwtUserId={jwtUser()}
-      />
-      <Chatbot
-        singleOralResult={oralHistory}
-        labelMapping={labelMapping}
-        jwtUserId={jwtUser()}
-      />
-    </Box>
+    </Container>
   );
 }
 
