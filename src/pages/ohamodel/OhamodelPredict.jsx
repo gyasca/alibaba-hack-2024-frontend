@@ -6,19 +6,20 @@ import Chatbot from "../../components/AI/OralHealthAnalysis/Chatbot";
 import {
   Box,
   Typography,
-  Paper,
-  Grid,
-  Button,
   Card,
   CardContent,
   Container,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import { UserContext } from "../../main";
 
 function OhamodelPredict() {
-  const [oralHistory, setOralHistory] = useState([]);
-  const { user, jwtUser } = useUser();
-  const {conditionCountRefresh, setConditionCountRefresh} = useContext(UserContext);
+  const [refreshHistory, setRefreshHistory] = useState(0);  // Use counter instead of array
+  const { userId, userLoading } = useUser();  // Use stored userId directly
+  const { conditionCountRefresh, setConditionCountRefresh } = useContext(UserContext);
+
+  console.log("OhamodelPredict - userId:", userId, "userLoading:", userLoading);
 
   const labelMapping = {
     0: "Caries",
@@ -27,32 +28,37 @@ function OhamodelPredict() {
     3: "Ulcer",
   };
 
-  console.log("OhamodelPredict rendering with oralHistory:", oralHistory);
-
   // Modified to directly accept the prediction results
   const updateOralHistory = (newPrediction) => {
     console.log("updateOralHistory called with prediction:", newPrediction);
-
     if (newPrediction && newPrediction.predictions) {
-      setOralHistory((prevHistory) => {
-        const newHistory = [
-          ...prevHistory,
-          {
-            timestamp: new Date().toISOString(),
-            predictions: newPrediction.predictions,
-          },
-        ];
-        console.log("Setting new oral history:", newHistory);
-        return newHistory;
-      });
+      setRefreshHistory(prev => prev + 1); // Increment refresh counter
     }
   };
 
   // Debug useEffect to monitor state changes
   useEffect(() => {
-    setConditionCountRefresh(oralHistory);
-    console.log("oralHistory state updated:", oralHistory);
-  }, [oralHistory]);
+    setConditionCountRefresh(prev => prev + 1); // Just increment the refresh counter
+    console.log("History refresh triggered:", refreshHistory);
+  }, [refreshHistory, setConditionCountRefresh]);
+
+  if (userLoading) {
+    return (
+      <Container maxWidth="xl" sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <Container maxWidth="xl" sx={{ mt: 2 }}>
+        <Alert severity="error">
+          User not logged in. Please log in to access this feature.
+        </Alert>
+      </Container>
+    );
+  }
 
   return (
     <Container
@@ -92,6 +98,7 @@ function OhamodelPredict() {
                   modelRoute={"/ohamodel/predict"}
                   labelMapping={labelMapping}
                   updateOralHistory={updateOralHistory}
+                  jwtUserId={userId}  // Pass stored userId directly
                 />
               </Card>
             </Box>
@@ -99,9 +106,9 @@ function OhamodelPredict() {
             <Box id="oral-history" sx={{ scrollMarginTop: '2rem' }}>
               <Card sx={{ p: 3, borderRadius: 2, border: "1px solid #eee" }}>
                 <OralHistory
-                  refreshTrigger={oralHistory}
+                  refreshTrigger={refreshHistory}  // Use counter instead of array
                   labelMapping={labelMapping}
-                  jwtUserId={jwtUser()}
+                  jwtUserId={userId}  // Pass stored userId directly
                 />
               </Card>
             </Box>
@@ -109,9 +116,9 @@ function OhamodelPredict() {
             <Box id="chatbot" sx={{ scrollMarginTop: '2rem' }}>
               <Card sx={{ p: 3, borderRadius: 2, border: "1px solid #eee" }}>
                 <Chatbot
-                  singleOralResult={oralHistory}
+                  singleOralResult={null}  // Don't pass history array here
                   labelMapping={labelMapping}
-                  jwtUserId={jwtUser()}
+                  jwtUserId={userId}  // Pass stored userId directly
                 />
               </Card>
             </Box>

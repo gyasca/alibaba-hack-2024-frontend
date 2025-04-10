@@ -41,12 +41,46 @@ import SaveResultsButton from "./SaveResultsButton";
 const MAX_FILE_SIZE = 2048 * 2048; // 2MB
 const IMAGE_PREVIEW_HEIGHT = 400; // Consistent height for previews
 
+// Image preview component definition
+const ImagePreviewBox = ({ image, title }) => (
+  <Box>
+    <Typography variant="h6" gutterBottom>
+      {title}
+    </Typography>
+    <Paper
+      elevation={2}
+      sx={{
+        p: 1,
+        bgcolor: "grey.50",
+        borderRadius: 2,
+        overflow: "hidden",
+        height: IMAGE_PREVIEW_HEIGHT,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <img
+        src={image}
+        alt={title}
+        style={{
+          maxWidth: "100%",
+          maxHeight: "100%",
+          objectFit: "contain",
+          borderRadius: 8,
+        }}
+      />
+    </Paper>
+  </Box>
+);
+
 const ImageUploadForPrediction = ({
   modelRoute,
   labelMapping,
   onPredictionResults,
   predictionResults,
-  updateOralHistory
+  updateOralHistory,
+  jwtUserId  // Add user ID prop
 }) => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
@@ -62,9 +96,6 @@ const ImageUploadForPrediction = ({
   const streamRef = useRef(null);
   const canvasRef = useRef(null);
   const [cameraError, setCameraError] = useState(null);
-  const [originalImagePathWithHostURL, setOriginalImagePathWithHostURL] =
-    useState(null);
-  const [newHistory, setNewHistory] = useState([]);
 
   const groupPredictions = (predictions) => {
     return predictions.reduce((acc, prediction) => {
@@ -106,45 +137,17 @@ const ImageUploadForPrediction = ({
         },
       });
 
+      console.log("Server response:", response.data);
+
+      // Store prediction result with all data including OSS URL
       setPredictionResult(response.data);
-      setNewHistory(response.data);
-      console.log("Prediction results:", response.data);
+      if (typeof updateOralHistory === 'function') {
+        updateOralHistory(response.data);
+      }
       
-      // Trigger scroll after a short delay to ensure components are updated
-      setTimeout(() => {
-        if (typeof onAnalysisComplete === 'function') {
-          onAnalysisComplete();
-        }
-      }, 500); // Half second delay
     } catch (err) {
       setError("Prediction failed. Please try again.");
       console.error("Prediction error:", err);
-    } finally {
-      setUploading(false);
-    }
-
-    const formDataForUpload = new FormData();
-    formDataForUpload.append("oralPhoto", file);
-
-    try {
-      const img_upload_response = await http.post(
-        "/upload/oral",
-        formDataForUpload,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
-
-      // Store the file URL returned from the backend
-      setOriginalImagePathWithHostURL(
-        img_upload_response.data.filePathWithHostURL
-      );
-      console.log(img_upload_response.data.filePathWithHostURL);
-    } catch (err) {
-      setError("Upload failed.");
-      console.error("Upload error:", err);
     } finally {
       setUploading(false);
     }
@@ -163,7 +166,6 @@ const ImageUploadForPrediction = ({
     maxSize: MAX_FILE_SIZE,
   });
 
-  // Camera functions remain the same...
   const startCamera = async () => {
     try {
       setCameraError(null);
@@ -228,39 +230,6 @@ const ImageUploadForPrediction = ({
     }
   };
 
-  // const drawBoundingBoxes = (imageSrc, predictions) => {
-  //   const img = new Image();
-  //   img.src = imageSrc;
-  //   img.onload = () => {
-  //     const canvas = document.createElement("canvas");
-  //     const ctx = canvas.getContext("2d");
-  //     canvas.width = img.width;
-  //     canvas.height = img.height;
-  //     ctx.drawImage(img, 0, 0);
-
-  //     predictions.forEach((prediction) => {
-  //       const { x_center, y_center, width, height, class: classIndex } = prediction;
-  //       const x = x_center - width / 2;
-  //       const y = y_center - height / 2;
-
-  //       ctx.strokeStyle = "#2196f3";
-  //       ctx.lineWidth = 3;
-  //       ctx.strokeRect(x, y, width, height);
-
-  //       const label = labelMapping[classIndex] || "Unknown";
-
-  //       ctx.font = "bold 16px Roboto";
-  //       ctx.fillStyle = "#2196f3";
-  //       ctx.fillText(label, x, y > 20 ? y - 10 : y + height + 20);
-  //     });
-
-  //     setFinalImage(canvas.toDataURL());
-  //   };
-  // };
-
-  const parentFile = true;
-
-  // new draw bounding boxes that adds labelling of boxes
   const drawBoundingBoxes = (imageSrc, predictions) => {
     const img = new Image();
     img.src = imageSrc;
@@ -283,7 +252,7 @@ const ImageUploadForPrediction = ({
         const x = x_center - width / 2;
         const y = y_center - height / 2;
 
-        // Draw the bounding box
+        // Draw bounding box
         ctx.strokeStyle = "#39FF14";
         ctx.lineWidth = 3;
         ctx.strokeRect(x, y, width, height);
@@ -300,11 +269,7 @@ const ImageUploadForPrediction = ({
         ctx.fillText(labelText, x, y > 20 ? y - 10 : y + height + 20);
       });
 
-      if (parentFile) {
-        setFinalImage(canvas.toDataURL());
-      } else {
-        resolve(canvas.toDataURL());
-      }
+      setFinalImage(canvas.toDataURL());
     };
   };
 
@@ -322,41 +287,8 @@ const ImageUploadForPrediction = ({
     };
   }, []);
 
-  const ImagePreviewBox = ({ image, title }) => (
-    <Box>
-      <Typography variant="h6" gutterBottom>
-        {title}
-      </Typography>
-      <Paper
-        elevation={2}
-        sx={{
-          p: 1,
-          bgcolor: "grey.50",
-          borderRadius: 2,
-          overflow: "hidden",
-          height: IMAGE_PREVIEW_HEIGHT,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <img
-          src={image}
-          alt={title}
-          style={{
-            maxWidth: "100%",
-            maxHeight: "100%",
-            objectFit: "contain",
-            borderRadius: 8,
-          }}
-        />
-      </Paper>
-    </Box>
-  );
-
   return (
     <>
-      {/* Header Section */}
       <Stack spacing={4} sx={{ width: '100%' }}>
         {/* Title Section */}
         <Box sx={{ textAlign: "center" }}>
@@ -459,7 +391,7 @@ const ImageUploadForPrediction = ({
             )}
 
             {/* Analysis Results */}
-            {predictionResult && (
+            {predictionResult && predictionResult.predictions && (
               <>
                 <Typography variant="h6" gutterBottom sx={{ mt: 2, mb: 3 }}>
                   Detected Conditions
@@ -526,7 +458,7 @@ const ImageUploadForPrediction = ({
                     ))}
 
                   {/* Save Results Section */}
-                  {originalImagePathWithHostURL && predictionResult && (
+                  {predictionResult && predictionResult.image_url && (
                     <Box
                       sx={{
                         mt: 4,
@@ -543,10 +475,11 @@ const ImageUploadForPrediction = ({
                         Save these results to your oral health history
                       </Typography>
                       <SaveResultsButton
-                        imagePathWithHostURL={originalImagePathWithHostURL}
+                        imagePathWithHostURL={predictionResult.image_url}
                         drawBoundingBox={drawBoundingBoxes}
                         predictionResult={predictionResult}
                         onSave={updateOralHistory}
+                        userId={jwtUserId}
                       />
                     </Box>
                   )}
@@ -557,7 +490,6 @@ const ImageUploadForPrediction = ({
         )}
       </Stack>
 
-      {/* Camera Dialog */}
       <Dialog
         open={isCameraOpen}
         onClose={stopCamera}
@@ -679,164 +611,6 @@ const ImageUploadForPrediction = ({
               startIcon={<PhotoCameraIcon />}
               sx={{ px: 4, py: 1.5 }}
               color="primary"
-            >
-              Take Photo
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
-      {/* Camera Dialog */}
-      <Dialog
-        open={isCameraOpen}
-        onClose={stopCamera}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-          },
-        }}
-      >
-        <DialogTitle>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <Typography variant="h6">
-              {capturedImage ? "Preview Photo" : "Take Photo"}
-            </Typography>
-            <IconButton
-              onClick={stopCamera}
-              size="small"
-              sx={{
-                "&:hover": {
-                  bgcolor: "error.light",
-                  color: "error.contrastText",
-                },
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-
-        <DialogContent
-          sx={{
-            p: 0,
-            position: "relative",
-            display: "flex",
-            justifyContent: "center",
-            minHeight: IMAGE_PREVIEW_HEIGHT,
-            bgcolor: "grey.50",
-          }}
-        >
-          {cameraError ? (
-            <Alert
-              severity="error"
-              sx={{
-                m: 2,
-                width: "100%",
-                maxWidth: 500,
-              }}
-            >
-              {cameraError}
-            </Alert>
-          ) : capturedImage ? (
-            // Show captured image preview
-            <Box
-              sx={{
-                width: "100%",
-                height: IMAGE_PREVIEW_HEIGHT,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                p: 2,
-              }}
-            >
-              <img
-                src={capturedImage}
-                alt="Captured"
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  objectFit: "contain",
-                  borderRadius: 8,
-                }}
-              />
-            </Box>
-          ) : (
-            // Show live camera feed
-            <Box
-              sx={{
-                width: "100%",
-                height: IMAGE_PREVIEW_HEIGHT,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                p: 2,
-              }}
-            >
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "100%",
-                  objectFit: "contain",
-                  borderRadius: 8,
-                }}
-              />
-              <canvas ref={canvasRef} style={{ display: "none" }} />
-            </Box>
-          )}
-        </DialogContent>
-
-        <DialogActions
-          sx={{
-            justifyContent: "center",
-            p: 2,
-            bgcolor: "background.paper",
-            borderTop: 1,
-            borderColor: "divider",
-          }}
-        >
-          {capturedImage ? (
-            <Stack direction="row" spacing={2}>
-              <Button
-                variant="outlined"
-                onClick={retakePhoto}
-                startIcon={<ReplayIcon />}
-                sx={{
-                  "&:hover": {
-                    bgcolor: "error.lighter",
-                  },
-                }}
-              >
-                Retake
-              </Button>
-              <Button
-                variant="contained"
-                onClick={acceptPhoto}
-                startIcon={<CheckIcon />}
-                color="success"
-              >
-                Use Photo
-              </Button>
-            </Stack>
-          ) : (
-            <Button
-              variant="contained"
-              onClick={capturePhoto}
-              startIcon={<PhotoCameraIcon />}
-              sx={{
-                px: 4,
-                py: 1,
-                borderRadius: 2,
-              }}
             >
               Take Photo
             </Button>

@@ -11,114 +11,36 @@ import {
   Alert,
 } from "@mui/material";
 import http from "../../../http";
-import useUser from "../../../context/useUser";
 
 const SaveResultsButton = ({
   imagePathWithHostURL,
   drawBoundingBoxes,
   predictionResult,
   onSave,
+  userId,  // Use userId prop instead of useUser hook
 }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [processedImage, setProcessedImage] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
 
-  const { user } = useUser();
-
   const handleSaveClick = async () => {
-    setIsDialogOpen(true);
-    setIsProcessing(true);
-    setError(null);
-
-    if (imagePathWithHostURL && predictionResult) {
-      try {
-        // Create a new image element
-        const img = new Image();
-        img.crossOrigin = "anonymous"; // Enable CORS
-
-        // Create a promise to handle image loading
-        const imageLoadPromise = new Promise((resolve, reject) => {
-          img.onload = () => resolve(img);
-          img.onerror = () => reject(new Error("Failed to load image"));
-        });
-
-        // Load the image
-        img.src = imagePathWithHostURL;
-
-        // Wait for image to load
-        const loadedImg = await imageLoadPromise;
-
-        // Create canvas and draw image
-        const canvas = document.createElement("canvas");
-        canvas.width = loadedImg.width;
-        canvas.height = loadedImg.height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(loadedImg, 0, 0);
-
-        // Draw bounding boxes
-        predictionResult.predictions.forEach((prediction, index) => {
-          const {
-            x_center,
-            y_center,
-            width,
-            height,
-            class: classIndex,
-            confidence,
-          } = prediction;
-          const x = x_center - width / 2;
-          const y = y_center - height / 2;
-
-          // Draw box
-          ctx.strokeStyle = "#39FF14";
-          ctx.lineWidth = 3;
-          ctx.strokeRect(x, y, width, height);
-
-          // Draw label
-          const confidenceText = (confidence * 100).toFixed(1);
-          const labelText = `Box ${index + 1} - ${confidenceText}%`;
-
-          ctx.font = "bold 16px Roboto";
-          ctx.fillStyle = "#ffffff";
-          ctx.fillText(labelText, x, y > 20 ? y - 10 : y + height + 20);
-        });
-
-        // Convert to data URL
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
-        setProcessedImage(dataUrl);
-
-        // Convert to blob for upload
-        canvas.toBlob(
-          async (blob) => {
-            const formData = new FormData();
-            formData.append("oralPhoto", blob, "processed_image.jpg");
-
-            try {
-              const response = await http.post("/upload/oral", formData, {
-                headers: {
-                  "Content-Type": "multipart/form-data",
-                },
-              });
-              setProcessedImage(response.data.filePathWithHostURL);
-            } catch (err) {
-              throw new Error("Failed to upload processed image");
-            }
-          },
-          "image/jpeg",
-          0.95
-        );
-      } catch (err) {
-        setError(err.message || "Failed to process image");
-        console.error("Processing error:", err);
-      } finally {
-        setIsProcessing(false);
-      }
+    if (!imagePathWithHostURL || !predictionResult || !userId) {
+      setError("Missing required data for saving results");
+      return;
     }
+
+    setIsDialogOpen(true);
+    setError(null);
   };
 
   const handleSaveHistory = async () => {
-    if (!predictionResult || !processedImage || !user?.userId) {
+    if (!predictionResult || !userId || !imagePathWithHostURL) {
       setError("Missing required data for saving history");
+      console.error("Missing data:", { 
+        hasPredictionResult: !!predictionResult, 
+        hasUserId: !!userId,
+        hasImageUrl: !!imagePathWithHostURL 
+      });
       return;
     }
 
@@ -127,28 +49,21 @@ const SaveResultsButton = ({
 
       // Structure the data to match the backend's expectations
       const historyData = {
-        user_id: user.userId,
-        original_image_path: imagePathWithHostURL,
-        condition_count: predictionResult.predictions.length,
-        predictions: predictionResult.predictions.map((pred) => ({
-          pred_class: pred.pred_class,
-          confidence: pred.confidence,
-          x_center: pred.x_center,
-          y_center: pred.y_center,
-          width: pred.width,
-          height: pred.height,
-        })),
+        user_id: userId,
+        image_url: imagePathWithHostURL,  // Use the OSS URL directly
+        predictions: predictionResult.predictions,
+        condition_count: predictionResult.condition_count || predictionResult.predictions.length
       };
 
       console.log("History data to send:", historyData);
-      const response = await http.post(
-        "/history/oha/save-results",
-        historyData
-      );
+      const response = await http.post("/history/oha/save-results", historyData);
 
       if (response.data.message === "Results saved successfully") {
         setIsDialogOpen(false);
         setError(null);
+        if (typeof onSave === 'function') {
+          onSave(predictionResult);
+        }
       } else {
         throw new Error("Failed to save results");
       }
@@ -171,7 +86,7 @@ const SaveResultsButton = ({
         variant="contained"
         color="primary"
         onClick={handleSaveClick}
-        disabled={isProcessing}
+        disabled={isProcessing || !imagePathWithHostURL || !predictionResult || !userId}
         sx={{ borderRadius: 2, padding: "10px 20px" }}
       >
         {isProcessing ? (
@@ -190,7 +105,7 @@ const SaveResultsButton = ({
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Preview & Save Results</DialogTitle>
+        <DialogTitle>Save Analysis Results</DialogTitle>
 
         <DialogContent>
           {error && (
@@ -199,7 +114,21 @@ const SaveResultsButton = ({
             </Alert>
           )}
 
-          {processedImage && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body1" gutterBottom>
+              Save this analysis to your history?
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              This will save:
+            </Typography>
+            <ul>
+              <li>The original image</li>
+              <li>All detected conditions ({predictionResult?.predictions?.length || 0} items)</li>
+              <li>Analysis details and measurements</li>
+            </ul>
+          </Box>
+
+          {imagePathWithHostURL && (
             <Box
               sx={{
                 mt: 2,
@@ -208,8 +137,8 @@ const SaveResultsButton = ({
               }}
             >
               <img
-                src={processedImage}
-                alt="Processed Result"
+                src={imagePathWithHostURL}
+                alt="Analysis Result"
                 style={{
                   maxWidth: "100%",
                   height: "auto",
@@ -230,11 +159,8 @@ const SaveResultsButton = ({
           </Button>
           <Button
             variant="contained"
-            onClick={async () => {
-              await handleSaveHistory();
-              onSave(predictionResult); // Pass the actual prediction result
-            }}
-            disabled={!processedImage || isProcessing}
+            onClick={handleSaveHistory}
+            disabled={isProcessing || !userId}
             color="success"
             sx={{ borderRadius: 2 }}
           >
